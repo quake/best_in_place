@@ -15,7 +15,7 @@ module BestInPlace
                   end
           {:display_as => value}.to_json
         when :proc
-          {:display_as => opts[:proc].call(object.send(opts[:attr]))}.to_json
+          {:display_as => eval(opts[:proc]).call(object.send(opts[:attr]))}.to_json
         else
           {}.to_json
         end
@@ -25,20 +25,27 @@ module BestInPlace
     @@table = Hash.new { |h,k| h[k] = Hash.new(&h.default_proc) }
 
     def lookup(klass, attr)
-      foo = @@table[klass.to_s][attr.to_s]
-      foo == {} ? nil : foo
+      Rails.cache.read(cache_key(klass, attr))
     end
 
     def add_model_method(klass, attr, display_as)
-      @@table[klass.to_s][attr.to_s] = Renderer.new :method => display_as.to_sym, :type => :model
+      write_to_cache(klass, attr, Renderer.new(:method => display_as.to_sym, :type => :model))
     end
 
     def add_helper_method(klass, attr, helper_method, helper_options = nil)
-      @@table[klass.to_s][attr.to_s] = Renderer.new :method => helper_method.to_sym, :type => :helper, :attr => attr, :helper_options => helper_options
+      write_to_cache(klass, attr, Renderer.new(:method => helper_method.to_sym, :type => :helper, :attr => attr, :helper_options => helper_options))
     end
     
     def add_helper_proc(klass, attr, helper_proc)
-      @@table[klass.to_s][attr.to_s] = Renderer.new :type => :proc, :attr => attr, :proc => helper_proc
+      write_to_cache(klass, attr, Renderer.new(:type => :proc, :attr => attr, :proc => helper_proc))
+    end
+
+    def write_to_cache(klass, attr, renderer)
+      Rails.cache.write(cache_key(klass, attr), renderer)
+    end
+
+    def cache_key(klass, attr)
+      "BestInPlace::DisplayMethods::#{klass}_#{attr}"
     end
   end
 end

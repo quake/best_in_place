@@ -6,7 +6,7 @@ module BestInPlace
         raise ArgumentError, "Can't use both 'display_as' and 'display_with' options at the same time"
       end
 
-      if opts[:display_with] && !opts[:display_with].is_a?(Proc) && !ViewHelpers.respond_to?(opts[:display_with])
+      if opts[:display_with] && !opts[:display_with].is_a?(String) && !ViewHelpers.respond_to?(opts[:display_with])
         raise ArgumentError, "Can't find helper #{opts[:display_with]}"
       end
 
@@ -98,9 +98,9 @@ module BestInPlace
         BestInPlace::DisplayMethods.add_model_method(klass, field, opts[:display_as])
         object.send(opts[:display_as]).to_s
 
-      elsif opts[:display_with].try(:is_a?, Proc)
+      elsif opts[:display_with].is_a?(String)
         BestInPlace::DisplayMethods.add_helper_proc(klass, field, opts[:display_with])
-        opts[:display_with].call(object.send(field))
+        eval(opts[:display_with]).call(object.send(field))
 
       elsif opts[:display_with]
         BestInPlace::DisplayMethods.add_helper_method(klass, field, opts[:display_with], opts[:helper_options])
